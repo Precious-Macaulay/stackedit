@@ -1,28 +1,39 @@
 function texMath(state, silent) {
   let startMathPos = state.pos;
-  if (state.src.charCodeAt(startMathPos) !== 0x24 /* $ */) {
+  const startMarker = state.src.slice(startMathPos, startMathPos + 2);
+  if (startMarker !== '$' && startMarker !== '\\(' && startMarker !== '\\[') {
     return false;
   }
 
   // Parse tex math according to http://pandoc.org/README.html#math
-  let endMarker = '$';
-  startMathPos += 1;
-  const afterStartMarker = state.src.charCodeAt(startMathPos);
-  if (afterStartMarker === 0x24 /* $ */) {
-    endMarker = '$$';
+  let endMarker = '';
+  if (startMarker === '$') {
+    endMarker = '$';
     startMathPos += 1;
-    if (state.src.charCodeAt(startMathPos) === 0x24 /* $ */) {
-      // 3 markers are too much
+    const afterStartMarker = state.src.charCodeAt(startMathPos);
+    if (afterStartMarker === 0x24 /* $ */) {
+      endMarker = '$$';
+      startMathPos += 1;
+      if (state.src.charCodeAt(startMathPos) === 0x24 /* $ */) {
+        // 3 markers are too much
+        return false;
+      }
+    } else if (
+      // Skip if opening $ is succeeded by a space character
+      afterStartMarker === 0x20 /* space */
+      || afterStartMarker === 0x09 /* \t */
+      || afterStartMarker === 0x0a /* \n */
+    ) {
       return false;
     }
-  } else if (
-    // Skip if opening $ is succeeded by a space character
-    afterStartMarker === 0x20 /* space */
-    || afterStartMarker === 0x09 /* \t */
-    || afterStartMarker === 0x0a /* \n */
-  ) {
-    return false;
+  } else if (startMarker === '\\(') {
+    endMarker = '\\)';
+    startMathPos += 2;
+  } else if (startMarker === '\\[') {
+    endMarker = '\\]';
+    startMathPos += 2;
   }
+
   const endMarkerPos = state.src.indexOf(endMarker, startMathPos);
   if (endMarkerPos === -1) {
     return false;
